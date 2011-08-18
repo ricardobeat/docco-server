@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "docco"     : "",
-    "request"   : ""
+    "request"   : "",
+    "express"   : ""
   },
   "main"        : "./autodoccs.coffee"
 }

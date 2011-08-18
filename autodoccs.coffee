@@ -1,4 +1,4 @@
-# 
+#
 # **Autodoccs** is a small webservice that generates
 # [Docco](http://jashkenas.github.com/docco/) style documentation for remote
 # JS files.
@@ -11,7 +11,7 @@
 ## Installation
 # `git clone https://github.com/ricardobeat/autodoccs.git` into the
 # directory of your choice, then create a `config.json` file like this:
-# 
+#
 #     {
 #       "baseURL": "http://myremotehost.com/",
 #       "cache": "cachepath/"
@@ -40,7 +40,7 @@ log = (msg) ->
     msg = "#{new Date().toJSON()} - #{msg}"
     console.log msg
     return msg
-    
+
 # Normalize file names for local copies
 getLocalFileName = (filename) ->
     filename.replace(config.baseURL, '').replace(/[\/:_]+/g, '_')
@@ -58,10 +58,17 @@ if not config?.baseURL?
     process.exit 1
 else
     console.log "Base URL: #{config.baseURL}"
-    
+
 # Load CSS in memory (requests for docco.css will be intercepted)
 # and this will be served instead
 CSS = fs.readFileSync 'resources/docco.css'
+
+# Create cache dir if it doesn't exist
+try
+	fs.lstatSync 'cache'
+catch e
+	fs.mkdirSync config.cache, 16877
+	log "Created #{config.cache} directory"
 
 #### Server
 
@@ -103,50 +110,43 @@ app.get '*', (req, res) ->
     # Try to read local file, will raise an error
     # if it doesn't exist.
     localPath = config.cache + 'docs/' + localFile.replace(/\.js$/, '.html')
-    fs.readFile localPath, (err, contents) ->
-        if err
-            getRemote()
-        else
-            res.end fixFileName(contents)
-    
-    # Fetch remote source file
-    getRemote = ->
-        log "fetching #{remoteFile}"
 
-        request.get remoteFile, (error, response, body) ->
-            # Status code must be 2xx
-            if error or Math.floor(response.statusCode/100) isnt 2
-                return res.end log "Error trying to fetch #{remoteFile}"
+    log "fetching #{remoteFile}"
+
+    request.get remoteFile, (error, response, body) ->
+        # Status code must be 2xx
+        if error or Math.floor(response.statusCode/100) isnt 2
+            return res.end log "Error trying to fetch #{remoteFile}"
+        
+        # Convert tabs to spaces
+        # (tab-indented code looks terrible on browsers)
+        body = body.replace /\t/g, "    "
+        
+        # Docco only works from local files, so we'll
+        # have to save a copy first.
+        fs.writeFile config.cache + localFile, body, (err) ->
+            throw err if err
+        
+            # Generate docs from saved file
+            #
+            # Set current working directory to cache dir so that
+            # generated files end up on `cache/docs/` and not in
+            # your current dir.
+            options = { cwd: "#{process.cwd()}/#{config.cache}" }
+            cp.exec "../node_modules/docco/bin/docco #{localFile}", options, (err, stdout, stderr) ->
+                if err
+                    return res.end log "Error generating docs for #{remoteFile}"
             
-            # Convert tabs to spaces
-            # (tab-indented code looks terrible on browsers)
-            body = body.replace /\t/g, "    "
+                # Get path to generated html from docco's stdout
+                try
+                    docsPath = stdout.match(/->\s(.*)/)[1]
+                catch e
+                    return res.end log "Error retrieving docs for #{remoteFile}"
             
-            # Docco only works from local files, so we'll
-            # have to save a copy first.
-            fs.writeFile config.cache + localFile, body, (err) ->
-                throw err if err
-            
-                # Generate docs from saved file
-                # 
-                # Set current working directory to cache dir so that
-                # generated files end up on `cache/docs/` and not in
-                # your current dir.
-                options = { cwd: "#{process.cwd()}/#{config.cache}" }
-                cp.exec "docco #{localFile}", options, (err, stdout, stderr) ->
-                    if err
-                        return res.end log "Error generating docs for #{remoteFile}"
-                
-                    # Get path to generated html from docco's stdout
-                    try
-                        docsPath = stdout.match(/->\s(.*)/)[1]
-                    catch e
-                        return res.end log "Error retrieving docs for #{remoteFile}"
-                
-                    # Read and send out documentation
-                    fs.readFile config.cache + docsPath, (err, data) ->
-                        if err then return res.end log "Error reading docs for #{remoteFile}"
-                        res.end fixFileName(data)
+                # Read and send out documentation
+                fs.readFile config.cache + docsPath, (err, data) ->
+                    if err then return res.end log "Error reading docs for #{remoteFile}"
+                    res.end fixFileName(data)
 
 # Start server
 app.listen HTTP_PORT

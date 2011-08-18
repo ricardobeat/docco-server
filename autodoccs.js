@@ -14,11 +14,9 @@
     return filename.replace(config.baseURL, '').replace(/[\/:_]+/g, '_');
   };
   config = JSON.parse(fs.readFileSync('config.json'));
-    if ((_ref = config.cache) != null) {
-    _ref;
-  } else {
+  if ((_ref = config.cache) == null) {
     config.cache = 'cache/';
-  };
+  }
   if (!((config != null ? config.baseURL : void 0) != null)) {
     console.log('Please define a baseURL in your config file.');
     process.exit(1);
@@ -26,6 +24,12 @@
     console.log("Base URL: " + config.baseURL);
   }
   CSS = fs.readFileSync('resources/docco.css');
+  try {
+    fs.lstatSync('cache');
+  } catch (e) {
+    fs.mkdirSync(config.cache, 16877);
+    log("Created " + config.cache + " directory");
+  }
   app = express.createServer();
   app.get('/', function(req, res) {
     var hostname, page;
@@ -35,7 +39,7 @@
     return res.send(page);
   });
   app.get('*', function(req, res) {
-    var fixFileName, getRemote, localFile, localPath, path, remoteFile;
+    var fixFileName, localFile, localPath, path, remoteFile;
     path = req.params.toString();
     if (~path.indexOf('favicon.ico')) {
       return;
@@ -51,48 +55,39 @@
       return contents.toString().replace(new RegExp(localFile, 'g'), remoteFile.split('/').slice(-1)[0]);
     };
     localPath = config.cache + 'docs/' + localFile.replace(/\.js$/, '.html');
-    fs.readFile(localPath, function(err, contents) {
-      if (err) {
-        return getRemote();
-      } else {
-        return res.end(fixFileName(contents));
+    log("fetching " + remoteFile);
+    return request.get(remoteFile, function(error, response, body) {
+      if (error || Math.floor(response.statusCode / 100) !== 2) {
+        return res.end(log("Error trying to fetch " + remoteFile));
       }
-    });
-    return getRemote = function() {
-      log("fetching " + remoteFile);
-      return request.get(remoteFile, function(error, response, body) {
-        if (error || Math.floor(response.statusCode / 100) !== 2) {
-          return res.end(log("Error trying to fetch " + remoteFile));
+      body = body.replace(/\t/g, "    ");
+      return fs.writeFile(config.cache + localFile, body, function(err) {
+        var options;
+        if (err) {
+          throw err;
         }
-        body = body.replace(/\t/g, "    ");
-        return fs.writeFile(config.cache + localFile, body, function(err) {
-          var options;
+        options = {
+          cwd: "" + (process.cwd()) + "/" + config.cache
+        };
+        return cp.exec("../node_modules/docco/bin/docco " + localFile, options, function(err, stdout, stderr) {
+          var docsPath;
           if (err) {
-            throw err;
+            return res.end(log("Error generating docs for " + remoteFile));
           }
-          options = {
-            cwd: "" + (process.cwd()) + "/" + config.cache
-          };
-          return cp.exec("docco " + localFile, options, function(err, stdout, stderr) {
-            var docsPath;
+          try {
+            docsPath = stdout.match(/->\s(.*)/)[1];
+          } catch (e) {
+            return res.end(log("Error retrieving docs for " + remoteFile));
+          }
+          return fs.readFile(config.cache + docsPath, function(err, data) {
             if (err) {
-              return res.end(log("Error generating docs for " + remoteFile));
+              return res.end(log("Error reading docs for " + remoteFile));
             }
-            try {
-              docsPath = stdout.match(/->\s(.*)/)[1];
-            } catch (e) {
-              return res.end(log("Error retrieving docs for " + remoteFile));
-            }
-            return fs.readFile(config.cache + docsPath, function(err, data) {
-              if (err) {
-                return res.end(log("Error reading docs for " + remoteFile));
-              }
-              return res.end(fixFileName(data));
-            });
+            return res.end(fixFileName(data));
           });
         });
       });
-    };
+    });
   });
   app.listen(HTTP_PORT);
   log("Service started on port " + HTTP_PORT);

@@ -45,7 +45,6 @@ log = (msg) ->
 getLocalFileName = (filename) ->
     filename.replace(config.baseURL, '').replace(/[\/:_]+/g, '_')
 
-
 #### Configuration
 # Load configuration file `config.json`
 config = JSON.parse fs.readFileSync 'config.json'
@@ -97,6 +96,10 @@ app.get '*', (req, res) ->
     # Normalize filename for local cache
     localFile  = getLocalFileName(remoteFile)
     
+    # Replace local copy's filename with original
+    fixFileName = (contents) ->
+        return contents.toString().replace new RegExp(localFile, 'g'), remoteFile.split('/').slice(-1)[0]
+    
     # Try to read local file, will raise an error
     # if it doesn't exist.
     localPath = config.cache + 'docs/' + localFile.replace(/\.js$/, '.html')
@@ -104,7 +107,7 @@ app.get '*', (req, res) ->
         if err
             getRemote()
         else
-            res.end contents
+            res.end fixFileName(contents)
     
     # Fetch remote source file
     getRemote = ->
@@ -143,7 +146,7 @@ app.get '*', (req, res) ->
                     # Read and send out documentation
                     fs.readFile config.cache + docsPath, (err, data) ->
                         if err then return res.end log "Error reading docs for #{remoteFile}"
-                        res.end data
+                        res.end fixFileName(data)
 
 # Start server
 app.listen HTTP_PORT

@@ -28,14 +28,14 @@
   CSS = fs.readFileSync('resources/docco.css');
   app = express.createServer();
   app.get('/', function(req, res) {
-    var hostname, index;
+    var hostname, page;
     hostname = "" + req.connection.remoteAddress + ":" + HTTP_PORT;
-    index = fs.readFileSync;
-    index = new Function("return " + index)();
-    return res.send(index);
+    page = fs.readFileSync('resources/default.html');
+    page = page.toString().replace('$base', config.baseURL).replace('$host', hostname);
+    return res.send(page);
   });
   app.get('*', function(req, res) {
-    var getRemote, localFile, localPath, path, remoteFile;
+    var fixFileName, getRemote, localFile, localPath, path, remoteFile;
     path = req.params.toString();
     if (~path.indexOf('favicon.ico')) {
       return;
@@ -47,12 +47,15 @@
     path = path.toString().replace(/^\/+/, '');
     remoteFile = config.baseURL.replace(/\/*$/, '/') + path;
     localFile = getLocalFileName(remoteFile);
+    fixFileName = function(contents) {
+      return contents.toString().replace(new RegExp(localFile, 'g'), remoteFile.split('/').slice(-1)[0]);
+    };
     localPath = config.cache + 'docs/' + localFile.replace(/\.js$/, '.html');
     fs.readFile(localPath, function(err, contents) {
       if (err) {
         return getRemote();
       } else {
-        return res.end(contents);
+        return res.end(fixFileName(contents));
       }
     });
     return getRemote = function() {
@@ -84,7 +87,7 @@
               if (err) {
                 return res.end(log("Error reading docs for " + remoteFile));
               }
-              return res.end(data);
+              return res.end(fixFileName(data));
             });
           });
         });

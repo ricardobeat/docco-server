@@ -32,7 +32,7 @@ request = require 'request'
 cp      = require 'child_process'
 
 # The HTTP port can be switched from command line
-HTTP_PORT = +process.argv[1] or 5005
+HTTP_PORT = +process.argv[2] or 5005
 
 #### Helper functions
 # Logs with timestamps for better debugging when writing to a log file

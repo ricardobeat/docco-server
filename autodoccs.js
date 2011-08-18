@@ -4,7 +4,7 @@
   fs = require('fs');
   request = require('request');
   cp = require('child_process');
-  HTTP_PORT = +process.argv[1] || 5005;
+  HTTP_PORT = +process.argv[2] || 5005;
   log = function(msg) {
     msg = "" + (new Date().toJSON()) + " - " + msg;
     console.log(msg);

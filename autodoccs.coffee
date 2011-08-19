@@ -1,7 +1,7 @@
 #
-# **Autodoccs** is a small webservice that generates
-# [Docco](http://jashkenas.github.com/docco/) style documentation for remote
-# JS files.
+# **Autodoccs** is a "documentation proxy" server. It allows you to view any
+# remote source file in a nice HTML format, generated using
+# [Docco](http://jashkenas.github.com/docco/).
 #
 # Get the source at
 # [http://github.com/ricardobeat/autodoccs](http://github.com/ricardobeat/autodoccs)

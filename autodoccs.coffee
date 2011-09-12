@@ -24,17 +24,19 @@
 # Start up the server with `node autodoccs.js`, then
 # point your browser to `http://localhost:5005/relative/remote/path/xxx.js`,
 # or go to `http://localhost:5005/` and type in your relative file path.
-
 #
+
 express = require 'express'
 fs      = require 'fs'
 request = require 'request'
 cp      = require 'child_process'
 
-# The HTTP port can be switched from command line
+# Pass port number as an argument if you need (defaults to port 5005)
 HTTP_PORT = +process.argv[2] or 5005
 
+
 #### Helper functions
+
 # Logs with timestamps for better debugging when writing to a log file
 log = (msg) ->
     msg = "#{new Date().toJSON()} - #{msg}"
@@ -45,7 +47,9 @@ log = (msg) ->
 getLocalFileName = (filename) ->
     filename.replace(config.baseURL, '').replace(/[\/:_]+/g, '_')
 
+
 #### Configuration
+
 # Load configuration file `config.json`
 config = JSON.parse fs.readFileSync 'config.json'
 
@@ -65,10 +69,10 @@ CSS = fs.readFileSync 'resources/docco.css'
 
 # Create cache dir if it doesn't exist
 try
-	fs.lstatSync 'cache'
+    fs.lstatSync 'cache'
 catch e
-	fs.mkdirSync config.cache, 16877
-	log "Created #{config.cache} directory"
+    fs.mkdirSync config.cache, 16877
+    log "Created #{config.cache} directory"
 
 #### Server
 
@@ -86,7 +90,7 @@ app.get '/', (req, res) ->
 
 app.get '*', (req, res) ->
 	
-	# Get relative path from URL
+    # Get relative path from URL
     path = req.params.toString()
     
     # Special cases (ignore favicon, serve CSS)
